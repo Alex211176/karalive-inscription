@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>KaraLive – Catalogue & infos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{
+      margin:0;
+      background:#111318;
+      color:#e8eaed;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    header{
+      position:sticky;
+      top:0;
+      background:#111318;
+      border-bottom:1px solid #2a2e35;
+      padding:12px 16px;
+      text-align:center;
+      font-weight:800;
+      font-size:22px;
+    }
+    main{
+      max-width:900px;
+      margin:0 auto;
+      padding:16px;
+    }
+    .card{
+      background:#1a1d24;
+      border-radius:14px;
+      border:1px solid #2a2e35;
+      padding:16px;
+      margin:12px 0;
+    }
+    h2{
+      margin-top:0;
+      font-size:18px;
+    }
+    .muted{ color:#9aa0a6; font-size:14px; }
+    input[type="search"]{
+      width:100%;
+      font-size:16px;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid #2a2e35;
+      background:#0f1116;
+      color:#e8eaed;
+      box-sizing:border-box;
+    }
+    input[type="search"]:focus{
+      outline:none;
+      border-color:#00e5ff;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      background:#2a2e35;
+      color:#c7cbd1;
+      font-size:12px;
+      margin:2px;
+      border:none;
+    }
+    .badge{
+      display:inline-block;
+      background:#2a2e35;
+      color:#c7cbd1;
+      border-radius:999px;
+      padding:2px 8px;
+      font-size:12px;
+      margin-left:6px;
+    }
+    .song{
+      padding:10px 0;
+      border-bottom:1px solid #2a2e35;
+    }
+    .song:last-child{ border-bottom:none; }
+    .song-title{
+      font-weight:600;
+      margin-bottom:4px;
+    }
+    mark{
+      background:#3a4a20;
+      color:#eaffb0;
+      padding:0 2px;
+      border-radius:4px;
+    }
+  </style>
+</head>
+<body>
+<header>KaraLive – Catalogue</header>
+<main>
+  <div class="card">
+    <h2>Comment s’inscrire pour chanter ?</h2>
+    <p class="muted">
+      🟢 Sur place, connectez-vous au Wi-Fi de la salle ou du routeur KaraLive et
+      scannez le QR code affiché sur l’écran.<br>
+      Le formulaire d’inscription est hébergé <strong>en local</strong>, dans le logiciel KaraLive.
+    </p>
+    <p class="muted">
+      🌐 Depuis chez vous ou en 4G, vous pouvez consulter ici le catalogue des titres disponibles.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Catalogue des titres</h2>
+    <p class="muted">Recherche par titre ou par tag :</p>
+    <input type="search" id="search" placeholder="Rechercher un titre ou un tag…">
+    <div id="summary" class="muted" style="margin-top:8px;">Chargement du catalogue…</div>
+    <div id="list" style="margin-top:10px;"></div>
+  </div>
+</main>
+
+<script>
+// Charge le catalogue depuis docs/catalog.json (à déposer dans ce repo)
+const catalogUrl = "catalog.json";
+
+const $ = (q)=>document.querySelector(q);
+
+function highlight(text, words){
+  if(!words.length) return text;
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp("(" + words.map(esc).join("|") + ")", "gi");
+  return text.replace(re, "<mark>$1</mark>");
+}
+
+let CATALOG = [];
+
+function renderCatalog(filterText){
+  const list = $("#list");
+  const sum  = $("#summary");
+  list.innerHTML = "";
+
+  const words = (filterText || "")
+    .split(/\s+/)
+    .map(w => w.trim().toLowerCase())
+    .filter(Boolean);
+
+  const filtered = CATALOG.filter(item=>{
+    if(!words.length) return true;
+    const hay = (item.title + " " + (item.tags||[]).join(" ")).toLowerCase();
+    return words.every(w => hay.includes(w));
+  });
+
+  filtered.forEach(item=>{
+    const div = document.createElement("div");
+    div.className = "song";
+    const safeTitle = highlight(item.title, words);
+    const tagsHtml = (item.tags || [])
+      .map(t => `<span class="badge">${highlight(t, words)}</span>`)
+      .join(" ");
+    div.innerHTML = `
+      <div class="song-title">${safeTitle}</div>
+      <div class="muted">${tagsHtml || "—"}</div>
+    `;
+    list.appendChild(div);
+  });
+
+  sum.textContent = `${filtered.length} titre(s) affiché(s) sur ${CATALOG.length}`;
+}
+
+fetch(catalogUrl, {cache:"no-store"})
+  .then(r=>{
+    if(!r.ok) throw 0;
+    return r.json();
+  })
+  .then(data=>{
+    CATALOG = data.items || [];
+    renderCatalog("");
+    $("#search").addEventListener("input", (ev)=>{
+      renderCatalog(ev.target.value || "");
+    });
+  })
+  .catch(()=>{
+    $("#summary").textContent = "Catalogue indisponible (fichier catalog.json manquant).";
+  });
+</script>
+</body>
+</html>
